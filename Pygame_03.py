@@ -8,6 +8,7 @@ WIN_WIDTH = 852
 win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
 pygame.display.set_caption("Best Game Ever")
 
+
 rec_width = 64
 rec_height = 64
 speed = 10
