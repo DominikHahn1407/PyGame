@@ -18,6 +18,13 @@ background = pygame.image.load("./images/bg.jpg")
 character = pygame.image.load("./images/standing.png")
 bullets_img = pygame.image.load("./images/bullet.png")
 
+bullet_sound = pygame.mixer.Sound("./images/bullet.mp3")
+hit_sound = pygame.mixer.Sound("./images/hit.mp3")
+
+pygame.mixer.music.load("./images/music.mp3")
+pygame.mixer.music.play(-1)
+
+score = 0
 
 for i in range(1, 10):
     walk_right_list.append(pygame.image.load(f"./images/R{i}.png"))
@@ -71,6 +78,18 @@ class CharacterObject:
         self.hit_box = (self.x + 20, self.y + 10, 28, 52)
         pygame.draw.rect(win, (255, 0, 0), self.hit_box, 2)
 
+    def hit(self):
+        self.x = int(WIN_WIDTH / 2 - self.width / 2)
+        self.y = WIN_HEIGHT - self.height
+        self.walk_count = 0
+
+        font = pygame.font.SysFont('comicsans', 100)
+        text = font.render('Game Over', 1, (255, 0, 0))
+        win.blit(text, (WIN_WIDTH/2-text.get_width()/2, WIN_HEIGHT/2-text.get_height()/2))
+        pygame.display.update()
+        
+        pygame.time.delay(3000)
+
 
 class Attack:
     def __init__(self, x, y, width, height, speed, direction):
@@ -99,6 +118,8 @@ class Enemy:
         self.path = [self.x, self.end]
 
         self.hit_box = (self.x + 10, self.y + 2, 28, 55)
+        self.health = 10
+        self.visible = True
 
 
     def enemy_move(self):
@@ -116,21 +137,29 @@ class Enemy:
                 self.walk_count = 0
 
     def enemy_draw(self, win):
-        self.enemy_move()
-        if self.walk_count + 1 >= 33:
-            self.walk_count = 0
+        if self.visible:
+            self.enemy_move()
+            if self.walk_count + 1 >= 33:
+                self.walk_count = 0
 
-        if self.speed > 0:
-            win.blit(enemy_walk_right_list[self.walk_count // 3], (self.x, self.y))
-            self.walk_count += 1
-            self.hit_box = (self.x + 10, self.y + 2, 28, 55)
-        elif self.speed < 0:
-            win.blit(enemy_walk_left_list[self.walk_count // 3], (self.x, self.y))
-            self.walk_count += 1
-            self.hit_box = (self.x + 22, self.y + 2, 28, 55)
-        pygame.draw.rect(win, (255, 0, 0), self.hit_box, 2)
+            if self.speed > 0:
+                win.blit(enemy_walk_right_list[self.walk_count // 3], (self.x, self.y))
+                self.walk_count += 1
+                self.hit_box = (self.x + 10, self.y + 2, 28, 55)
+            elif self.speed < 0:
+                win.blit(enemy_walk_left_list[self.walk_count // 3], (self.x, self.y))
+                self.walk_count += 1
+                self.hit_box = (self.x + 22, self.y + 2, 28, 55)
+            pygame.draw.rect(win, (255, 0, 0), (self.hit_box[0] - 6, self.hit_box[1] - 20, 40, 10))
+            pygame.draw.rect(win, (0, 255, 0), (self.hit_box[0] - 6,
+                                                self.hit_box[1] - 20, 40 - 4 * (10 - self.health), 10))
+            pygame.draw.rect(win, (255, 0, 0), self.hit_box, 2)
 
     def hit(self):
+        if self.health > 1:
+            self.health -= 1
+        else:
+            self.visible = False
         print("hit")
 
 
@@ -139,10 +168,14 @@ ugly_guy = Enemy(64, 64, 5)
 bullet_speed = 10
 bullets = []
 shoots = 0
+font = pygame.font.SysFont('comicsans', 30, True)
 
 
 def draw_window():
     win.blit(background, (0, 0))
+
+    text = font.render(f"Score: {score}", 1, (40, 40, 40))
+    win.blit(text, (700, 20))
 
     awesome_character.window_draw(win)
     ugly_guy.enemy_draw(win)
@@ -156,6 +189,11 @@ def draw_window():
 while still_playing:
     pygame.time.delay(int(1000/27))
 
+    if awesome_character.hit_box[1] < ugly_guy.hit_box[1] + ugly_guy.hit_box[3] and awesome_character.hit_box[1] + awesome_character.hit_box[3] > ugly_guy.hit_box[1]:
+        if awesome_character.hit_box[0] < ugly_guy.hit_box[0] + ugly_guy.hit_box[2] and awesome_character.hit_box[0] + awesome_character.hit_box[2] > ugly_guy.hit_box[0]:
+            awesome_character.hit()
+            score -= 50
+
     if shoots > 0:
         shoots += 1
     if shoots > 3:
@@ -168,7 +206,9 @@ while still_playing:
     for bullet in bullets:
         if bullet.y > ugly_guy.hit_box[1] and bullet.y + bullet.height < ugly_guy.hit_box[1] + ugly_guy.hit_box[3]:
             if bullet.x + bullet.width > ugly_guy.hit_box[0] and bullet.x < ugly_guy.hit_box[0] + ugly_guy.hit_box[2]:
+                hit_sound.play()
                 ugly_guy.hit()
+                score += 10
                 bullets.remove(bullet)
         if 0 < bullet.x < WIN_WIDTH:
             bullet.x += bullet.direction
@@ -192,6 +232,7 @@ while still_playing:
         awesome_character.walk_count = 0
 
     if keys[pygame.K_SPACE] and shoots == 0:
+        bullet_sound.play()
         bullet_start_x = int(awesome_character.x + awesome_character.width // 2)
         bullet_start_y = int(awesome_character.y + awesome_character.height // 2)
         bullet_direction = 0
